@@ -125,7 +125,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             EventExecutorGroup group, ChannelHandlerInvoker invoker, String name, ChannelHandler handler) {
         final AbstractChannelHandlerContext newCtx;
         final EventExecutor executor;
-        final boolean inEventLoop;
         synchronized (this) {
             checkMultiplicity(handler);
 
@@ -136,33 +135,27 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             newCtx = new DefaultChannelHandlerContext(this, invoker, filterName(name, handler), handler);
             executor = executorSafe(invoker);
 
+            addFirst0(newCtx);
+
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
             if (executor == null) {
-                addFirst0(newCtx);
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                addFirst0(newCtx);
+
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        callHandlerAdded0(newCtx);
+                    }
+                });
+                return this;
             }
         }
-
-        if (inEventLoop) {
-            callHandlerAdded0(newCtx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        addFirst0(newCtx);
-                    }
-                    callHandlerAdded0(newCtx);
-                }
-            }));
-        }
+        callHandlerAdded0(newCtx);
         return this;
     }
 
@@ -195,7 +188,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
 
         final EventExecutor executor;
         final AbstractChannelHandlerContext newCtx;
-        final boolean inEventLoop;
         synchronized (this) {
             checkMultiplicity(handler);
 
@@ -206,32 +198,26 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             newCtx = new DefaultChannelHandlerContext(this, invoker, filterName(name, handler), handler);
             executor = executorSafe(invoker);
 
+            addLast0(newCtx);
+
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
             if (executor == null) {
-                addLast0(newCtx);
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                addLast0(newCtx);
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        callHandlerAdded0(newCtx);
+                    }
+                });
+                return this;
             }
         }
-        if (inEventLoop) {
-            callHandlerAdded0(newCtx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        addLast0(newCtx);
-                    }
-                    callHandlerAdded0(newCtx);
-                }
-            }));
-        }
+        callHandlerAdded0(newCtx);
         return this;
     }
 
@@ -267,7 +253,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         final EventExecutor executor;
         final AbstractChannelHandlerContext newCtx;
         final AbstractChannelHandlerContext ctx;
-        final boolean inEventLoop;
         synchronized (this) {
             checkMultiplicity(handler);
             ctx = getContextOrDie(baseName);
@@ -279,34 +264,27 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             newCtx = new DefaultChannelHandlerContext(this, invoker, filterName(name, handler), handler);
             executor = executorSafe(invoker);
 
+            addBefore0(ctx, newCtx);
+
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
             if (executor == null) {
-                addBefore0(ctx, newCtx);
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
 
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                addBefore0(ctx, newCtx);
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        callHandlerAdded0(newCtx);
+                    }
+                });
+                return this;
             }
         }
-
-        if (inEventLoop) {
-            callHandlerAdded0(newCtx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        addBefore0(ctx, newCtx);
-                    }
-                    callHandlerAdded0(newCtx);
-                }
-            }));
-        }
+        callHandlerAdded0(newCtx);
         return this;
     }
 
@@ -341,7 +319,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         final EventExecutor executor;
         final AbstractChannelHandlerContext newCtx;
         final AbstractChannelHandlerContext ctx;
-        final boolean inEventLoop;
 
         synchronized (this) {
             checkMultiplicity(handler);
@@ -354,32 +331,26 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             newCtx = new DefaultChannelHandlerContext(this, invoker, filterName(name, handler), handler);
             executor = executorSafe(invoker);
 
+            addAfter0(ctx, newCtx);
+
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we remove the context from the pipeline and add a task that will call
             // ChannelHandler.handlerRemoved(...) once the channel is registered.
             if (executor == null) {
-                addAfter0(ctx, newCtx);
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                addAfter0(ctx, newCtx);
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        callHandlerAdded0(newCtx);
+                    }
+                });
+                return this;
             }
         }
-        if (inEventLoop) {
-            callHandlerAdded0(newCtx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        addAfter0(ctx, newCtx);
-                    }
-                    callHandlerAdded0(newCtx);
-                }
-            }));
-        }
+        callHandlerAdded0(newCtx);
         return this;
     }
 
@@ -556,36 +527,30 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         assert ctx != head && ctx != tail;
 
         final EventExecutor executor;
-        final boolean inEventLoop;
         synchronized (this) {
             executor = executorSafe(ctx.invoker);
+
+            remove0(ctx);
 
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we remove the context from the pipeline and add a task that will call
             // ChannelHandler.handlerRemoved(...) once the channel is registered.
             if (executor == null) {
-                remove0(ctx);
                 callHandlerCallbackLater(ctx, false);
                 return ctx;
             }
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                remove0(ctx);
+
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        callHandlerRemoved0(ctx);
+                    }
+                });
+                return ctx;
             }
         }
-        if (inEventLoop) {
-            callHandlerRemoved0(ctx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        remove0(ctx);
-                    }
-                    callHandlerRemoved0(ctx);
-                }
-            }));
-        }
+        callHandlerRemoved0(ctx);
         return ctx;
     }
 
@@ -636,7 +601,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
 
         final AbstractChannelHandlerContext newCtx;
         final EventExecutor executor;
-        final boolean inEventLoop;
         synchronized (this) {
             checkMultiplicity(newHandler);
 
@@ -649,42 +613,36 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             newCtx = new DefaultChannelHandlerContext(this, ctx.invoker, newName, newHandler);
             executor = executorSafe(ctx.invoker);
 
+            replace0(ctx, newCtx);
+
             // If the executor is null it means that the channel was not registered on an eventloop yet.
             // In this case we replace the context in the pipeline
             // and add a task that will call ChannelHandler.handlerAdded(...) and
             // ChannelHandler.handlerRemoved(...) once the channel is registered.
             if (executor == null) {
-                replace0(ctx, newCtx);
                 callHandlerCallbackLater(newCtx, true);
                 callHandlerCallbackLater(ctx, false);
                 return ctx.handler();
             }
-            inEventLoop = executor.inEventLoop();
-            if (inEventLoop) {
-                replace0(ctx, newCtx);
+            if (!executor.inEventLoop()) {
+                executor.execute(new OneTimeTask() {
+                    @Override
+                    public void run() {
+                        // Invoke newHandler.handlerAdded() first (i.e. before oldHandler.handlerRemoved() is invoked)
+                        // because callHandlerRemoved() will trigger channelRead() or flush() on newHandler and
+                        // those event handlers must be called after handlerAdded().
+                        callHandlerAdded0(newCtx);
+                        callHandlerRemoved0(ctx);
+                    }
+                });
+                return ctx.handler();
             }
         }
-        if (inEventLoop) {
-            // Invoke newHandler.handlerAdded() first (i.e. before oldHandler.handlerRemoved() is invoked)
-            // because callHandlerRemoved() will trigger channelRead() or flush() on newHandler and those
-            // event handlers must be called after handlerAdded().
-            callHandlerAdded0(newCtx);
-            callHandlerRemoved0(ctx);
-        } else {
-            waitForFuture(executor.submit(new OneTimeTask() {
-                @Override
-                public void run() {
-                    synchronized (DefaultChannelPipeline.this) {
-                        replace0(ctx, newCtx);
-                    }
-                    // Invoke newHandler.handlerAdded() first (i.e. before oldHandler.handlerRemoved() is invoked)
-                    // because callHandlerRemoved() will trigger channelRead() or flush() on newHandler and
-                    // those event handlers must be called after handlerAdded().
-                    callHandlerAdded0(newCtx);
-                    callHandlerRemoved0(ctx);
-                }
-            }));
-        }
+        // Invoke newHandler.handlerAdded() first (i.e. before oldHandler.handlerRemoved() is invoked)
+        // because callHandlerRemoved() will trigger channelRead() or flush() on newHandler and those
+        // event handlers must be called after handlerAdded().
+        callHandlerAdded0(newCtx);
+        callHandlerRemoved0(ctx);
         return ctx.handler();
     }
 
