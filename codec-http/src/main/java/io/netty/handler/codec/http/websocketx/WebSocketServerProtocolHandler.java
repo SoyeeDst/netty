@@ -118,7 +118,7 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
             WebSocketServerHandshaker handshaker = getHandshaker(ctx.channel());
             if (handshaker != null) {
                 frame.retain();
-                handshaker.close(ctx.channel(), (CloseWebSocketFrame) frame);
+                handshaker.close(ctx, (CloseWebSocketFrame) frame);
             } else {
                 ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             }
@@ -129,10 +129,11 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
         if (cause instanceof WebSocketHandshakeException) {
             FullHttpResponse response = new DefaultFullHttpResponse(
                     HTTP_1_1, HttpResponseStatus.BAD_REQUEST, Unpooled.wrappedBuffer(cause.getMessage().getBytes()));
-            ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+            ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         } else {
             ctx.close();
         }
@@ -154,7 +155,7 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
                     ((FullHttpRequest) msg).release();
                     FullHttpResponse response =
                             new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.FORBIDDEN);
-                    ctx.channel().writeAndFlush(response);
+                    ctx.writeAndFlush(response);
                 } else {
                     ctx.fireChannelRead(msg);
                 }
