@@ -17,6 +17,7 @@ package io.netty.channel;
 
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.CharsetUtil;
@@ -150,7 +151,7 @@ public class PendingWriteQueueTest {
 
         ByteBuf[] buffers = new ByteBuf[count];
         for (int i = 0; i < buffers.length; i++) {
-            buffers[i] = buffer.duplicate().retain();
+            buffers[i] = buffer.duplicateRetained();
         }
         assertTrue(channel.writeOutbound(buffers));
         assertTrue(channel.finish());
@@ -182,7 +183,7 @@ public class PendingWriteQueueTest {
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
         ByteBuf[] buffers = new ByteBuf[count];
         for (int i = 0; i < buffers.length; i++) {
-            buffers[i] = buffer.duplicate().retain();
+            buffers[i] = buffer.duplicateRetained();
         }
         try {
             assertFalse(channel.writeOutbound(buffers));

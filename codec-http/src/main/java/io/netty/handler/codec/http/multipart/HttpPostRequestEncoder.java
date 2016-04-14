@@ -26,11 +26,11 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedInput;
@@ -48,7 +48,8 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static io.netty.buffer.Unpooled.*;
+import static io.netty.buffer.Unpooled.buffer;
+import static io.netty.buffer.Unpooled.wrappedBuffer;
 
 /**
  * This encoder will help to encode Request for a FORM as POST.
@@ -836,7 +837,6 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         int length = currentBuffer.readableBytes();
         if (length > HttpPostBodyUtil.chunkSize) {
             ByteBuf slice = currentBuffer.slice(currentBuffer.readerIndex(), HttpPostBodyUtil.chunkSize);
-            currentBuffer.retain();
             currentBuffer.skipBytes(HttpPostBodyUtil.chunkSize);
             return slice;
         } else {

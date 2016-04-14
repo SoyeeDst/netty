@@ -615,6 +615,11 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf readSliceRetained(int length) {
+        return checkLength(length);
+    }
+
+    @Override
     public ByteBuf readBytes(ByteBuf dst) {
         return checkLength(dst.writableBytes());
     }
@@ -846,12 +851,27 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf sliceRetained() {
+        return this;
+    }
+
+    @Override
     public ByteBuf slice(int index, int length) {
         return checkIndex(index, length);
     }
 
     @Override
+    public ByteBuf sliceRetained(int index, int length) {
+        return checkIndex(index, length);
+    }
+
+    @Override
     public ByteBuf duplicate() {
+        return this;
+    }
+
+    @Override
+    public ByteBuf duplicateRetained() {
         return this;
     }
 

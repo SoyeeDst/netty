@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2016 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,68 +13,64 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package io.netty.buffer;
 
 import io.netty.util.ByteProcessor;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
-/**
- * A derived buffer which simply forwards all data access requests to its
- * parent.  It is recommended to use {@link ByteBuf#duplicate()} instead
- * of calling the constructor explicitly.
- *
- * @deprecated Do not use.
- */
-@Deprecated
-public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
+final class PooledReadOnlyByteBuf extends AbstractPooledDerivedByteBuf<PooledReadOnlyByteBuf> {
 
-    private final ByteBuf buffer;
+    private static final Recycler<PooledReadOnlyByteBuf> RECYCLER = new Recycler<PooledReadOnlyByteBuf>() {
+        @Override
+        protected PooledReadOnlyByteBuf newObject(Handle<PooledReadOnlyByteBuf> handle) {
+            return new PooledReadOnlyByteBuf(handle);
+        }
+    };
 
-    public DuplicatedByteBuf(ByteBuf buffer) {
-        this(buffer, buffer.readerIndex(), buffer.writerIndex());
-    }
-
-    DuplicatedByteBuf(ByteBuf buffer, int readerIndex, int writerIndex) {
-        super(buffer.maxCapacity());
-
-        if (buffer instanceof DuplicatedByteBuf) {
-            this.buffer = ((DuplicatedByteBuf) buffer).buffer;
+    static PooledReadOnlyByteBuf newInstance(AbstractByteBuf buffer) {
+        final AbstractByteBuf unwrapped;
+        if (buffer instanceof DuplicatedAbstractByteBuf) {
+            unwrapped = (AbstractByteBuf) buffer.unwrap();
         } else {
-            this.buffer = buffer;
+            unwrapped = buffer;
         }
 
-        setIndex(readerIndex, writerIndex);
-        markReaderIndex();
-        markWriterIndex();
+        final PooledReadOnlyByteBuf readOnly = RECYCLER.get();
+        readOnly.init(unwrapped, buffer.readerIndex(), buffer.writerIndex(), buffer.maxCapacity());
+        readOnly.markReaderIndex();
+        readOnly.markWriterIndex();
+
+        return readOnly;
+    }
+
+    private PooledReadOnlyByteBuf(Handle<PooledReadOnlyByteBuf> handle) {
+        super(handle);
     }
 
     @Override
-    public ByteBuf unwrap() {
-        return buffer;
+    public boolean isReadOnly() {
+        return true;
     }
 
     @Override
-    public ByteBufAllocator alloc() {
-        return unwrap().alloc();
+    public boolean isWritable() {
+        return false;
     }
 
     @Override
-    @Deprecated
-    public ByteOrder order() {
-        return unwrap().order();
-    }
-
-    @Override
-    public boolean isDirect() {
-        return unwrap().isDirect();
+    public boolean isWritable(int numBytes) {
+        return false;
     }
 
     @Override
@@ -90,27 +86,51 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     public boolean hasArray() {
-        return unwrap().hasArray();
+        return false;
     }
 
     @Override
     public byte[] array() {
-        return unwrap().array();
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public int arrayOffset() {
-        return unwrap().arrayOffset();
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public boolean hasMemoryAddress() {
-        return unwrap().hasMemoryAddress();
+        return false;
     }
 
     @Override
     public long memoryAddress() {
-        return unwrap().memoryAddress();
+        throw new ReadOnlyBufferException();
+    }
+
+    @Override
+    public ByteBuffer nioBuffer(int index, int length) {
+        return unwrap().nioBuffer(index, length).asReadOnlyBuffer();
+    }
+
+    @Override
+    public ByteBuffer[] nioBuffers(int index, int length) {
+        final ByteBuffer[] nioBuffers = unwrap().nioBuffers(index, length);
+        for (int i = 0; i < nioBuffers.length; i++) {
+            nioBuffers[i] = nioBuffers[i].asReadOnlyBuffer();
+        }
+        return nioBuffers;
+    }
+
+    @Override
+    public ByteBuf discardReadBytes() {
+        throw new ReadOnlyBufferException();
+    }
+
+    @Override
+    public ByteBuf copy(int index, int length) {
+        return unwrap().copy(index, length);
     }
 
     @Override
@@ -120,7 +140,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected byte _getByte(int index) {
-        return unwrap().getByte(index);
+        return unwrap()._getByte(index);
     }
 
     @Override
@@ -130,7 +150,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected short _getShort(int index) {
-        return unwrap().getShort(index);
+        return unwrap()._getShort(index);
     }
 
     @Override
@@ -140,7 +160,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected short _getShortLE(int index) {
-        return unwrap().getShortLE(index);
+        return unwrap()._getShortLE(index);
     }
 
     @Override
@@ -150,7 +170,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected int _getUnsignedMedium(int index) {
-        return unwrap().getUnsignedMedium(index);
+        return unwrap()._getUnsignedMedium(index);
     }
 
     @Override
@@ -160,7 +180,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected int _getUnsignedMediumLE(int index) {
-        return unwrap().getUnsignedMediumLE(index);
+        return unwrap()._getUnsignedMediumLE(index);
     }
 
     @Override
@@ -170,7 +190,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected int _getInt(int index) {
-        return unwrap().getInt(index);
+        return unwrap()._getInt(index);
     }
 
     @Override
@@ -180,7 +200,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected int _getIntLE(int index) {
-        return unwrap().getIntLE(index);
+        return unwrap()._getIntLE(index);
     }
 
     @Override
@@ -190,7 +210,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected long _getLong(int index) {
-        return unwrap().getLong(index);
+        return unwrap()._getLong(index);
     }
 
     @Override
@@ -200,17 +220,7 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     protected long _getLongLE(int index) {
-        return unwrap().getLongLE(index);
-    }
-
-    @Override
-    public ByteBuf copy(int index, int length) {
-        return unwrap().copy(index, length);
-    }
-
-    @Override
-    public ByteBuf slice(int index, int length) {
-        return unwrap().slice(index, length);
+        return unwrap()._getLongLE(index);
     }
 
     @Override
@@ -233,166 +243,138 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
 
     @Override
     public ByteBuf setByte(int index, int value) {
-        unwrap().setByte(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setByte(int index, int value) {
-        unwrap().setByte(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setShort(int index, int value) {
-        unwrap().setShort(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setShort(int index, int value) {
-        unwrap().setShort(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setShortLE(int index, int value) {
-        unwrap().setShortLE(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setShortLE(int index, int value) {
-        unwrap().setShortLE(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setMedium(int index, int value) {
-        unwrap().setMedium(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setMedium(int index, int value) {
-        unwrap().setMedium(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setMediumLE(int index, int value) {
-        unwrap().setMediumLE(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setMediumLE(int index, int value) {
-        unwrap().setMediumLE(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setInt(int index, int value) {
-        unwrap().setInt(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setInt(int index, int value) {
-        unwrap().setInt(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setIntLE(int index, int value) {
-        unwrap().setIntLE(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setIntLE(int index, int value) {
-        unwrap().setIntLE(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setLong(int index, long value) {
-        unwrap().setLong(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setLong(int index, long value) {
-        unwrap().setLong(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setLongLE(int index, long value) {
-        unwrap().setLongLE(index, value);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     protected void _setLongLE(int index, long value) {
-        unwrap().setLongLE(index, value);
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setBytes(int index, byte[] src, int srcIndex, int length) {
-        unwrap().setBytes(index, src, srcIndex, length);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setBytes(int index, ByteBuf src, int srcIndex, int length) {
-        unwrap().setBytes(index, src, srcIndex, length);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
     public ByteBuf setBytes(int index, ByteBuffer src) {
-        unwrap().setBytes(index, src);
-        return this;
+        throw new ReadOnlyBufferException();
     }
 
     @Override
-    public ByteBuf getBytes(int index, OutputStream out, int length)
-            throws IOException {
+    public ByteBuf getBytes(int index, OutputStream out, int length) throws IOException {
         unwrap().getBytes(index, out, length);
         return this;
     }
 
     @Override
-    public int getBytes(int index, GatheringByteChannel out, int length)
-            throws IOException {
+    public int getBytes(int index, GatheringByteChannel out, int length) throws IOException {
         return unwrap().getBytes(index, out, length);
     }
 
     @Override
-    public int getBytes(int index, FileChannel out, long position, int length)
-            throws IOException {
+    public int getBytes(int index, FileChannel out, long position, int length) throws IOException {
         return unwrap().getBytes(index, out, position, length);
     }
 
     @Override
-    public int setBytes(int index, InputStream in, int length)
-            throws IOException {
-        return unwrap().setBytes(index, in, length);
+    public int setBytes(int index, InputStream in, int length) {
+        throw new ReadOnlyBufferException();
     }
 
     @Override
-    public int setBytes(int index, ScatteringByteChannel in, int length)
-            throws IOException {
-        return unwrap().setBytes(index, in, length);
+    public int setBytes(int index, ScatteringByteChannel in, int length) {
+        throw new ReadOnlyBufferException();
     }
 
     @Override
-    public int setBytes(int index, FileChannel in, long position, int length)
-            throws IOException {
-        return unwrap().setBytes(index, in, position, length);
-    }
-
-    @Override
-    public int nioBufferCount() {
-        return unwrap().nioBufferCount();
-    }
-
-    @Override
-    public ByteBuffer[] nioBuffers(int index, int length) {
-        return unwrap().nioBuffers(index, length);
+    public int setBytes(int index, FileChannel in, long position, int length) {
+        throw new ReadOnlyBufferException();
     }
 
     @Override
@@ -405,4 +387,3 @@ public class DuplicatedByteBuf extends AbstractDerivedByteBuf {
         return unwrap().forEachByteDesc(index, length, processor);
     }
 }
-

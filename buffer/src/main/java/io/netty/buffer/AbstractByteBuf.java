@@ -805,6 +805,13 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf readSliceRetained(int length) {
+        ByteBuf slice = sliceRetained(readerIndex, length);
+        readerIndex += length;
+        return slice;
+    }
+
+    @Override
     public ByteBuf readBytes(byte[] dst, int dstIndex, int length) {
         checkReadableBytes(length);
         getBytes(readerIndex, dst, dstIndex, length);
@@ -1121,13 +1128,28 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf duplicateRetained() {
+        return ByteBufUtil.duplicateRetained(this);
+    }
+
+    @Override
     public ByteBuf slice() {
         return slice(readerIndex, readableBytes());
     }
 
     @Override
+    public ByteBuf sliceRetained() {
+        return ByteBufUtil.sliceRetained(this);
+    }
+
+    @Override
     public ByteBuf slice(int index, int length) {
         return new SlicedAbstractByteBuf(this, index, length);
+    }
+
+    @Override
+    public ByteBuf sliceRetained(int index, int length) {
+        return ByteBufUtil.sliceRetained(this, index, length);
     }
 
     @Override

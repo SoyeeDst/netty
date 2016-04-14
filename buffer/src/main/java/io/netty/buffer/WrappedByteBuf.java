@@ -607,6 +607,11 @@ class WrappedByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf readSliceRetained(int length) {
+        return buf.readSliceRetained(length);
+    }
+
+    @Override
     public ByteBuf readBytes(ByteBuf dst) {
         buf.readBytes(dst);
         return this;
@@ -855,13 +860,28 @@ class WrappedByteBuf extends ByteBuf {
     }
 
     @Override
+    public ByteBuf sliceRetained() {
+        return buf.sliceRetained();
+    }
+
+    @Override
     public ByteBuf slice(int index, int length) {
         return buf.slice(index, length);
     }
 
     @Override
+    public ByteBuf sliceRetained(int index, int length) {
+        return buf.sliceRetained(index, length);
+    }
+
+    @Override
     public ByteBuf duplicate() {
         return buf.duplicate();
+    }
+
+    @Override
+    public ByteBuf duplicateRetained() {
+        return buf.duplicateRetained();
     }
 
     @Override

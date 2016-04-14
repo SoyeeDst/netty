@@ -16,6 +16,7 @@
 package io.netty.example.discard;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -62,7 +63,7 @@ public class DiscardClientHandler extends SimpleChannelInboundHandler<Object> {
     private void generateTraffic() {
         // Flush the outbound buffer to the socket.
         // Once flushed, generate the same amount of traffic again.
-        ctx.writeAndFlush(content.duplicate().retain()).addListener(trafficGenerator);
+        ctx.writeAndFlush(content.duplicateRetained()).addListener(trafficGenerator);
     }
 
     private final ChannelFutureListener trafficGenerator = new ChannelFutureListener() {

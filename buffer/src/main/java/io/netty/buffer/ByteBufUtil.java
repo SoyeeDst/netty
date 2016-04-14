@@ -699,6 +699,66 @@ public final class ByteBufUtil {
     }
 
     /**
+     * Creates a retained duplicate of the specified {@link ByteBuf}.
+     */
+    public static ByteBuf duplicateRetained(ByteBuf buf) {
+        final int readerIndex = buf.readerIndex();
+        final int writerIndex = buf.writerIndex();
+
+        final AbstractByteBuf duplicate;
+        if (buf instanceof SlicedAbstractByteBuf) {
+            final SlicedAbstractByteBuf oldSlice = (SlicedAbstractByteBuf) buf;
+            duplicate = PooledSlicedByteBuf.newInstance(oldSlice.unwrap(), 0, buf.capacity(), oldSlice.adjustment());
+            duplicate.setIndex(readerIndex, writerIndex);
+            duplicate.markReaderIndex();
+            duplicate.markWriterIndex();
+        } else if (buf instanceof DuplicatedAbstractByteBuf) {
+            duplicate = PooledDuplicatedByteBuf.newInstance((AbstractByteBuf) buf.unwrap(), readerIndex, writerIndex);
+        } else if (buf instanceof AbstractByteBuf) {
+            duplicate = PooledDuplicatedByteBuf.newInstance((AbstractByteBuf) buf, readerIndex, writerIndex);
+        } else if (buf instanceof SlicedByteBuf) {
+            duplicate = new SlicedByteBuf(buf, 0, buf.capacity());
+            duplicate.setIndex(readerIndex, writerIndex);
+            duplicate.markReaderIndex();
+            duplicate.markWriterIndex();
+            duplicate.retain();
+        } else {
+            duplicate = new DuplicatedByteBuf(buf, readerIndex, writerIndex);
+            duplicate.retain();
+        }
+
+        return duplicate;
+    }
+
+    /**
+     * Creates a retained slice of the specified {@link ByteBuf}.
+     */
+    public static ByteBuf sliceRetained(ByteBuf buf) {
+        final int index = buf.readerIndex();
+        return sliceRetained(buf, index, buf.writerIndex() - index);
+    }
+
+    /**
+     * Creates a retained slice of the specified {@link ByteBuf}.
+     */
+    public static ByteBuf sliceRetained(ByteBuf buf, int index, int length) {
+        final AbstractByteBuf slice;
+        if (buf instanceof SlicedAbstractByteBuf) {
+            final SlicedAbstractByteBuf oldSlice = (SlicedAbstractByteBuf) buf;
+            slice = PooledSlicedByteBuf.newInstance(oldSlice.unwrap(), index, length, index + oldSlice.adjustment());
+        } else if (buf instanceof DuplicatedAbstractByteBuf) {
+            slice = PooledSlicedByteBuf.newInstance((AbstractByteBuf) buf.unwrap(), index, length, index);
+        } else if (buf instanceof AbstractByteBuf) {
+            slice = PooledSlicedByteBuf.newInstance((AbstractByteBuf) buf, index, length, index);
+        } else {
+            slice = new SlicedByteBuf(buf, index, length);
+            slice.retain();
+        }
+
+        return slice;
+    }
+
+    /**
      * Returns a multi-line hexadecimal dump of the specified {@link ByteBuf} that is easy to read by humans.
      */
     public static String prettyHexDump(ByteBuf buffer) {
